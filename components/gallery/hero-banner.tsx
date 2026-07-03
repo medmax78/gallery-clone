@@ -5,8 +5,8 @@ export function HeroBanner() {
     <div className="bg-card p-2">
       <div className="relative aspect-[16/7] w-full overflow-hidden rounded-sm">
         <Image
-          src="/hero-ship.png"
-          alt="Swire Bulk cargo vessel anchored in harbor"
+          src="/hero-ship.jpg"
+          alt="Swire Bulk cargo vessel at sea"
           fill
           priority
           sizes="(max-width: 768px) 100vw, 640px"
