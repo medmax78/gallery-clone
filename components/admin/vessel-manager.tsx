@@ -1,18 +1,22 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Pencil, Trash2, Check, X, ChevronDown, Ship } from "lucide-react"
+import { useRef, useState } from "react"
+import { Plus, Pencil, Trash2, Check, X, ChevronDown, Ship, ImageIcon, Loader2 } from "lucide-react"
+import Image from "next/image"
 import type { Vessel } from "@/lib/gallery-data"
 import { useGalleryStore } from "@/lib/gallery-store"
 import { DishManager } from "@/components/admin/dish-manager"
 
 export function VesselManager({ vessels }: { vessels: Vessel[] }) {
-  const { addVessel, renameVessel, deleteVessel } = useGalleryStore()
+  const { addVessel, renameVessel, deleteVessel, updateVesselThumbnail } = useGalleryStore()
   const [newName, setNewName] = useState("")
   const [expanded, setExpanded] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  // Track which vessel is currently uploading its thumbnail
+  const [uploadingThumb, setUploadingThumb] = useState<string | null>(null)
+  const thumbInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const addNew = (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +35,26 @@ export function VesselManager({ vessels }: { vessels: Vessel[] }) {
     const next = editValue.trim()
     if (next && next !== oldName) renameVessel(oldName, next)
     setEditing(null)
+  }
+
+  const handleThumbChange = async (vessel: Vessel, file: File) => {
+    if (!file.type.startsWith("image/")) return
+    setUploadingThumb(vessel.name)
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("vesselName", vessel.name)
+      const res = await fetch("/api/upload", { method: "POST", body: form })
+      const json = await res.json()
+      if (json.path) {
+        updateVesselThumbnail(vessel.name, json.path)
+      }
+    } finally {
+      setUploadingThumb(null)
+      // Reset input so the same file can be re-selected
+      const input = thumbInputRefs.current[vessel.name]
+      if (input) input.value = ""
+    }
   }
 
   return (
@@ -91,6 +115,43 @@ export function VesselManager({ vessels }: { vessels: Vessel[] }) {
                   </>
                 ) : (
                   <>
+                    {/* Hidden file input for thumbnail upload */}
+                    <input
+                      ref={(el) => { thumbInputRefs.current[vessel.name] = el }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      aria-hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleThumbChange(vessel, file)
+                      }}
+                    />
+
+                    {/* Thumbnail preview + change button */}
+                    <button
+                      type="button"
+                      onClick={() => thumbInputRefs.current[vessel.name]?.click()}
+                      aria-label={`Change logo for ${vessel.name}`}
+                      title="Change vessel photo / logo"
+                      className="group relative flex-shrink-0 overflow-hidden rounded-md border border-border"
+                      style={{ width: 40, height: 40 }}
+                    >
+                      <Image
+                        src={vessel.thumbnail}
+                        alt=""
+                        fill
+                        className="object-cover transition-opacity group-hover:opacity-50"
+                        sizes="40px"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                        {uploadingThumb === vessel.name
+                          ? <Loader2 size={16} className="animate-spin text-foreground" aria-hidden />
+                          : <ImageIcon size={16} className="text-foreground" aria-hidden />
+                        }
+                      </span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setExpanded(isOpen ? null : vessel.name)}
