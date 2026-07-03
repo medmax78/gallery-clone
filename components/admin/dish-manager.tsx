@@ -107,7 +107,7 @@ export function DishManager({ vessel }: DishManagerProps) {
               </div>
               <button
                 type="button"
-                onClick={() => deleteDish(vessel.name, dish.id)}
+                onClick={() => deleteDish("", dish.id)}
                 aria-label="Delete photo"
                 className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-danger text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100"
               >

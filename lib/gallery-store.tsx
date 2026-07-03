@@ -1,24 +1,21 @@
 "use client"
 
+import { createContext, useCallback, useContext, useMemo } from "react"
+import useSWR, { mutate as globalMutate } from "swr"
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+  getVessels,
+  addVessel as addVesselAction,
+  renameVessel as renameVesselAction,
+  deleteVessel as deleteVesselAction,
+  addDish as addDishAction,
+  deleteDish as deleteDishAction,
+  rateDish as rateDishAction,
+} from "@/app/actions/gallery"
 import type { Dish, RankedDish, Vessel } from "@/lib/gallery-data"
-import { VESSELS } from "@/lib/gallery-data"
 
-const STORAGE_KEY = "swire-gallery-v1"
+const SWR_KEY = "gallery-vessels"
 
-type NewDishInput = {
-  image: string
-  date: string
-  rating: number
-}
+type NewDishInput = { image: string; date: string; rating: number }
 
 type GalleryStore = {
   vessels: Vessel[]
@@ -34,111 +31,81 @@ type GalleryStore = {
 
 const Ctx = createContext<GalleryStore | null>(null)
 
-function recompute(vessel: Vessel): Vessel {
-  const dishes = vessel.dishes
-  const rating =
-    dishes.length > 0
-      ? Math.round((dishes.reduce((s, d) => s + d.rating, 0) / dishes.length) * 10) / 10
-      : 0
-  return { ...vessel, rating, photoCount: dishes.length }
-}
-
 export function GalleryStoreProvider({ children }: { children: React.ReactNode }) {
-  const [vessels, setVessels] = useState<Vessel[]>(VESSELS)
-  const [ready, setReady] = useState(false)
-  const hydrated = useRef(false)
+  const { data: vessels = [], isLoading } = useSWR<Vessel[]>(SWR_KEY, getVessels, {
+    // Re-fetch every 30 s so multiple admin tabs stay in sync.
+    refreshInterval: 30_000,
+    revalidateOnFocus: true,
+  })
 
-  // Load persisted state after mount to avoid hydration mismatch.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as Vessel[]
-        if (Array.isArray(parsed) && parsed.length > 0) setVessels(parsed)
-      }
-    } catch {
-      // ignore corrupt storage
-    }
-    hydrated.current = true
-    setReady(true)
-  }, [])
+  const ready = !isLoading
 
-  // Persist on change (only after initial hydration).
-  useEffect(() => {
-    if (!hydrated.current) return
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(vessels))
-    } catch {
-      // ignore quota errors
-    }
-  }, [vessels])
+  // --- optimistic helpers --------------------------------------------------
 
-  const rateDish = useCallback((dishId: string, value: number) => {
-    setVessels((prev) =>
-      prev.map((v) => {
-        if (!v.dishes.some((d) => d.id === dishId)) return v
-        const dishes = v.dishes.map((d) => {
-          if (d.id !== dishId) return d
-          const votes = d.votes + 1
-          const rating = Math.round(((d.rating * d.votes + value) / votes) * 10) / 10
-          return { ...d, rating, votes }
-        })
-        return recompute({ ...v, dishes })
-      }),
-    )
-  }, [])
+  const revalidate = useCallback(() => globalMutate(SWR_KEY), [])
 
-  const addVessel = useCallback((name: string, thumbnail: string) => {
-    setVessels((prev) => {
-      if (prev.some((v) => v.name.toLowerCase() === name.toLowerCase())) return prev
-      return [
-        { name, thumbnail: thumbnail || "/vessel-container.png", rating: 0, photoCount: 0, dishes: [] },
-        ...prev,
-      ]
-    })
-  }, [])
+  const rateDish = useCallback(
+    (dishId: string, value: number) => {
+      // Optimistic update first, then persist.
+      globalMutate(
+        SWR_KEY,
+        (prev: Vessel[] = []) =>
+          prev.map((v) => {
+            if (!v.dishes.some((d) => d.id === dishId)) return v
+            const dishes = v.dishes.map((d) => {
+              if (d.id !== dishId) return d
+              const votes = d.votes + 1
+              const rating = Math.round(((d.rating * d.votes + value) / votes) * 10) / 10
+              return { ...d, rating, votes }
+            })
+            const rating =
+              Math.round((dishes.reduce((s, d) => s + d.rating, 0) / dishes.length) * 10) / 10
+            return { ...v, dishes, rating }
+          }),
+        { revalidate: false },
+      )
+      rateDishAction(dishId, value).then(revalidate)
+    },
+    [revalidate],
+  )
 
-  const renameVessel = useCallback((oldName: string, newName: string) => {
-    setVessels((prev) => prev.map((v) => (v.name === oldName ? { ...v, name: newName } : v)))
-  }, [])
+  const addVessel = useCallback(
+    (name: string, _thumbnail: string) => {
+      addVesselAction(name).then(revalidate)
+    },
+    [revalidate],
+  )
 
-  const deleteVessel = useCallback((name: string) => {
-    setVessels((prev) => prev.filter((v) => v.name !== name))
-  }, [])
+  const renameVessel = useCallback(
+    (oldName: string, newName: string) => {
+      renameVesselAction(oldName, newName).then(revalidate)
+    },
+    [revalidate],
+  )
 
-  const addDish = useCallback((vesselName: string, dish: NewDishInput) => {
-    setVessels((prev) =>
-      prev.map((v) => {
-        if (v.name !== vesselName) return v
-        const newDish: Dish = {
-          id: `${vesselName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          image: dish.image,
-          date: dish.date,
-          rating: dish.rating,
-          votes: 1,
-        }
-        return recompute({ ...v, dishes: [newDish, ...v.dishes] })
-      }),
-    )
-  }, [])
+  const deleteVessel = useCallback(
+    (name: string) => {
+      deleteVesselAction(name).then(revalidate)
+    },
+    [revalidate],
+  )
 
-  const deleteDish = useCallback((vesselName: string, dishId: string) => {
-    setVessels((prev) =>
-      prev.map((v) => {
-        if (v.name !== vesselName) return v
-        return recompute({ ...v, dishes: v.dishes.filter((d) => d.id !== dishId) })
-      }),
-    )
-  }, [])
+  const addDish = useCallback(
+    (vesselName: string, dish: NewDishInput) => {
+      addDishAction(vesselName, dish).then(revalidate)
+    },
+    [revalidate],
+  )
 
-  const reset = useCallback(() => {
-    setVessels(VESSELS)
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // ignore
-    }
-  }, [])
+  const deleteDish = useCallback(
+    (_vesselName: string, dishId: string) => {
+      deleteDishAction(dishId).then(revalidate)
+    },
+    [revalidate],
+  )
+
+  // Reset is no longer meaningful with a real DB; just revalidate.
+  const reset = useCallback(() => revalidate(), [revalidate])
 
   const value = useMemo<GalleryStore>(
     () => ({
@@ -165,7 +132,9 @@ export function useGalleryStore() {
 }
 
 export function extremeDishes(vessels: Vessel[]) {
-  const all: RankedDish[] = vessels.flatMap((v) => v.dishes.map((d) => ({ ...d, vessel: v.name })))
+  const all: RankedDish[] = vessels.flatMap((v) =>
+    v.dishes.map((d) => ({ ...d, vessel: v.name })),
+  )
   const sorted = [...all].sort((a, b) => a.rating - b.rating)
   return {
     lowest: sorted.slice(0, 3),
