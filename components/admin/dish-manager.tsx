@@ -5,6 +5,7 @@ import Image from "next/image"
 import { ImageIcon, Loader2, Plus, Trash2, UploadCloud, X } from "lucide-react"
 import { type Vessel } from "@/lib/gallery-data"
 import { useGalleryStore } from "@/lib/gallery-store"
+import exifr from "exifr"
 
 type DishManagerProps = {
   vessel: Vessel
@@ -12,6 +13,11 @@ type DishManagerProps = {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function dateToISO(d: Date | undefined | null): string {
+  if (!d || isNaN(d.getTime())) return todayISO()
+  return d.toISOString().slice(0, 10)
 }
 
 type PendingFile = {
@@ -37,20 +43,44 @@ export function DishManager({ vessel }: DishManagerProps) {
   // Helpers
   // -------------------------------------------------------------------------
 
-  const addFiles = (files: FileList | File[]) => {
-    const newItems: PendingFile[] = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((f) => ({
-        key: `${f.name}-${f.size}-${Date.now()}-${Math.random()}`,
-        file: f,
-        preview: URL.createObjectURL(f),
-        date: todayISO(),
-        rating: 3,
-        status: "idle" as const,
-      }))
+  const addFiles = async (files: FileList | File[]) => {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"))
+    if (arr.length === 0) return
+
+    // Build pending items immediately with preview URLs and today as the date,
+    // then update each one's date once EXIF is parsed.
+    const newItems: PendingFile[] = arr.map((f) => ({
+      key: `${f.name}-${f.size}-${Date.now()}-${Math.random()}`,
+      file: f,
+      preview: URL.createObjectURL(f),
+      date: todayISO(),
+      rating: 3,
+      status: "idle" as const,
+    }))
+
     setPending((prev) => [...prev, ...newItems])
+
     // Reset the hidden input so the same files can be re-selected
     if (fileRef.current) fileRef.current.value = ""
+
+    // Extract EXIF dates in parallel and patch each staged item
+    await Promise.all(
+      newItems.map(async (item) => {
+        try {
+          const tags = await exifr.parse(item.file, {
+            pick: ["DateTimeOriginal", "CreateDate", "ModifyDate"],
+          })
+          const exifDate: Date | undefined =
+            tags?.DateTimeOriginal ?? tags?.CreateDate ?? tags?.ModifyDate
+          const date = dateToISO(exifDate instanceof Date ? exifDate : null)
+          setPending((prev) =>
+            prev.map((p) => (p.key === item.key ? { ...p, date } : p))
+          )
+        } catch {
+          // No EXIF or unreadable — keep today's date, no problem
+        }
+      })
+    )
   }
 
   const removeItem = (key: string) => {
@@ -219,7 +249,10 @@ export function DishManager({ vessel }: DishManagerProps) {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <div className="space-y-0.5">
-                        <label className="text-[10px] text-muted-foreground">Date</label>
+                        <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          Date
+                          <span className="opacity-50" title="Auto-filled from photo EXIF data">(EXIF)</span>
+                        </label>
                         <input
                           type="date"
                           value={item.date}
