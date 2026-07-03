@@ -1,0 +1,57 @@
+-- Run this once on your local PostgreSQL to create the database, user and tables.
+-- Usage: psql -U postgres -f db/init.sql
+
+-- 1. Create database and user
+CREATE DATABASE gallery_db;
+CREATE USER gallery_user WITH ENCRYPTED PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE gallery_db TO gallery_user;
+
+-- 2. Connect to the new database, then create tables
+\c gallery_db
+
+GRANT ALL ON SCHEMA public TO gallery_user;
+
+CREATE TABLE IF NOT EXISTS vessels (
+  id          text PRIMARY KEY,
+  name        text NOT NULL UNIQUE,
+  thumbnail   text NOT NULL DEFAULT '/vessel-container.png',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS dishes (
+  id          text PRIMARY KEY,
+  vessel_id   text NOT NULL,
+  image       text NOT NULL,
+  date        timestamptz NOT NULL,
+  rating      numeric(4,2) NOT NULL DEFAULT 3,
+  votes       integer NOT NULL DEFAULT 1,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS admin_credentials (
+  id       integer PRIMARY KEY DEFAULT 1,
+  username text    NOT NULL DEFAULT 'max',
+  password text    NOT NULL DEFAULT '1234567890',
+  CHECK (id = 1)
+);
+
+-- 3. Seed default admin credentials
+INSERT INTO admin_credentials (id, username, password)
+VALUES (1, 'max', '1234567890')
+ON CONFLICT (id) DO NOTHING;
+
+-- 4. Seed default vessels
+INSERT INTO vessels (id, name) VALUES
+  ('v-0',  'mv Powan'),
+  ('v-1',  'mv Kaying'),
+  ('v-2',  'mv Poyang'),
+  ('v-3',  'mv Pakhoi'),
+  ('v-4',  'mv Pekin'),
+  ('v-5',  'mv Moana Chief'),
+  ('v-6',  'mv Luenho'),
+  ('v-7',  'mv Hoihow'),
+  ('v-8',  'mv Hanyang'),
+  ('v-9',  'mv Fuchow'),
+  ('v-10', 'mv Lintan')
+ON CONFLICT (id) DO NOTHING;
