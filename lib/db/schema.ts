@@ -1,4 +1,5 @@
 import { numeric, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 export const vessels = pgTable('vessels', {
   id:        text('id').primaryKey(),
@@ -18,5 +19,12 @@ export const dishes = pgTable('dishes', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
-export type VesselRow = typeof vessels.$inferSelect
-export type DishRow   = typeof dishes.$inferSelect
+export const adminCredentials = pgTable('admin_credentials', {
+  id:       integer('id').primaryKey().default(sql`1`),
+  username: text('username').notNull().default('max'),
+  password: text('password').notNull().default('1234567890'),
+})
+
+export type VesselRow            = typeof vessels.$inferSelect
+export type DishRow              = typeof dishes.$inferSelect
+export type AdminCredentialsRow  = typeof adminCredentials.$inferSelect

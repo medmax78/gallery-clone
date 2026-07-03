@@ -1,25 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { Lock, ShieldAlert } from "lucide-react"
+import { Lock, Loader2, ShieldAlert } from "lucide-react"
+import { verifyAdminCredentials } from "@/app/actions/gallery"
 
 type AdminLoginProps = {
-  onSuccess: () => void
+  onSuccess: (username: string) => void
 }
-
-const ADMIN_USER = "max"
-const ADMIN_PASS = "1234567890"
 
 export function AdminLogin({ onSuccess }: AdminLoginProps) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState(false)
+  const [error, setError]       = useState(false)
+  const [loading, setLoading]   = useState(false)
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (username.trim() === ADMIN_USER && password === ADMIN_PASS) {
-      setError(false)
-      onSuccess()
+    setLoading(true)
+    setError(false)
+    const ok = await verifyAdminCredentials(username.trim(), password)
+    setLoading(false)
+    if (ok) {
+      onSuccess(username.trim())
     } else {
       setError(true)
     }
@@ -76,8 +78,10 @@ export function AdminLogin({ onSuccess }: AdminLoginProps) {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-gold-dark"
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-gold-dark disabled:opacity-60"
           >
+            {loading && <Loader2 size={15} className="animate-spin" aria-hidden />}
             Sign in
           </button>
         </form>

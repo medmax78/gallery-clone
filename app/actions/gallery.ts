@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { eq, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { db } from '@/lib/db'
-import { dishes, vessels } from '@/lib/db/schema'
+import { dishes, vessels, adminCredentials } from '@/lib/db/schema'
 import type { Vessel, Dish } from '@/lib/gallery-data'
 
 // ---------------------------------------------------------------------------
@@ -123,6 +123,59 @@ export async function deleteDish(dishId: string): Promise<void> {
   await db.delete(dishes).where(eq(dishes.id, dishId))
   revalidatePath('/')
   revalidatePath('/admin')
+}
+
+// ---------------------------------------------------------------------------
+// Admin credentials
+// ---------------------------------------------------------------------------
+
+export async function verifyAdminCredentials(
+  username: string,
+  password: string,
+): Promise<boolean> {
+  const [row] = await db.select().from(adminCredentials).where(eq(adminCredentials.id, 1))
+  if (!row) return username === 'max' && password === '1234567890'
+  return row.username === username && row.password === password
+}
+
+export async function getAdminUsername(): Promise<string> {
+  const [row] = await db.select({ username: adminCredentials.username }).from(adminCredentials).where(eq(adminCredentials.id, 1))
+  return row?.username ?? 'max'
+}
+
+export async function updateAdminCredentials(
+  currentPassword: string,
+  newUsername: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const [row] = await db.select().from(adminCredentials).where(eq(adminCredentials.id, 1))
+  const existing = row ?? { username: 'max', password: '1234567890' }
+
+  if (existing.password !== currentPassword) {
+    return { ok: false, error: 'Current password is incorrect.' }
+  }
+  const trimUser = newUsername.trim()
+  if (!trimUser) return { ok: false, error: 'Username cannot be empty.' }
+  if (newPassword.length > 0 && newPassword.length < 6) {
+    return { ok: false, error: 'New password must be at least 6 characters.' }
+  }
+
+  await db
+    .insert(adminCredentials)
+    .values({
+      id: 1,
+      username: trimUser,
+      password: newPassword || existing.password,
+    })
+    .onConflictDoUpdate({
+      target: adminCredentials.id,
+      set: {
+        username: trimUser,
+        password: newPassword || existing.password,
+      },
+    })
+
+  return { ok: true }
 }
 
 // ---------------------------------------------------------------------------
