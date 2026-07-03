@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    root /var/www/gallery-php;
+    index index.php;
+
+    client_max_body_size 50M;
+
+    # Protect config/db.php
+    location ~ /config/ {
+        deny all;
+        return 404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include        snippets/fastcgi-php.conf;
+        fastcgi_pass   unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param  SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include        fastcgi_params;
+    }
+
+    location ~* \.(jpg|jpeg|png|gif|webp|css|js|ico|svg)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+}

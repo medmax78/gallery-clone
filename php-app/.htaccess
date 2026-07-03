@@ -1,0 +1,12 @@
+Options -Indexes
+
+# Protect config directory
+<FilesMatch "^db\.php$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Pretty URLs (optional, not strictly needed for this app)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
