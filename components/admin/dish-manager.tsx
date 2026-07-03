@@ -26,7 +26,6 @@ type PendingFile = {
   file: File
   preview: string
   date: string
-  rating: number
   /** upload state */
   status: "idle" | "uploading" | "done" | "error"
   error?: string
@@ -54,7 +53,6 @@ export function DishManager({ vessel }: DishManagerProps) {
       file: f,
       preview: URL.createObjectURL(f),
       date: todayISO(),
-      rating: 3,
       status: "idle" as const,
     }))
 
@@ -91,7 +89,7 @@ export function DishManager({ vessel }: DishManagerProps) {
     })
   }
 
-  const updateItem = (key: string, patch: Partial<Pick<PendingFile, "date" | "rating">>) => {
+  const updateItem = (key: string, patch: Partial<Pick<PendingFile, "date">>) => {
     setPending((prev) =>
       prev.map((p) => (p.key === key ? { ...p, ...patch } : p))
     )
@@ -143,7 +141,7 @@ export function DishManager({ vessel }: DishManagerProps) {
           await addDish(vessel.name, {
             image: imagePath,
             date: new Date(item.date).toISOString(),
-            rating: item.rating,
+            rating: 3,
           })
 
           setPending((prev) =>
@@ -247,35 +245,18 @@ export function DishManager({ vessel }: DishManagerProps) {
                       <ImageIcon size={11} aria-hidden />
                       {item.file.name}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="space-y-0.5">
-                        <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          Date
-                          <span className="opacity-50" title="Auto-filled from photo EXIF data">(EXIF)</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={item.date}
-                          disabled={item.status === "uploading"}
-                          onChange={(e) => updateItem(item.key, { date: e.target.value })}
-                          className="rounded border border-input bg-background px-1.5 py-1 text-xs text-foreground outline-none focus:border-gold disabled:opacity-50"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <label className="text-[10px] text-muted-foreground">Rating</label>
-                        <select
-                          value={item.rating}
-                          disabled={item.status === "uploading"}
-                          onChange={(e) => updateItem(item.key, { rating: Number(e.target.value) })}
-                          className="rounded border border-input bg-background px-1.5 py-1 text-xs text-foreground outline-none focus:border-gold disabled:opacity-50"
-                        >
-                          {[1, 2, 3, 4, 5].map((r) => (
-                            <option key={r} value={r}>
-                              {r} star{r > 1 ? "s" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="space-y-0.5">
+                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        Date
+                        <span className="opacity-50" title="Auto-filled from photo EXIF data">(EXIF)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={item.date}
+                        disabled={item.status === "uploading"}
+                        onChange={(e) => updateItem(item.key, { date: e.target.value })}
+                        className="rounded border border-input bg-background px-1.5 py-1 text-xs text-foreground outline-none focus:border-gold disabled:opacity-50"
+                      />
                     </div>
                     {item.status === "error" && (
                       <p className="text-[11px] text-danger">{item.error}</p>
