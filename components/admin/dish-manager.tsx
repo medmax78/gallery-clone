@@ -141,7 +141,7 @@ export function DishManager({ vessel }: DishManagerProps) {
           await addDish(vessel.name, {
             image: imagePath,
             date: new Date(item.date).toISOString(),
-            rating: 3,
+            rating: 0,
           })
 
           setPending((prev) =>
