@@ -14,7 +14,7 @@ export type Vessel = {
   dishes: Dish[]
 }
 
-const DISH_IMAGES = [
+export const DISH_IMAGES = [
   "/dish-fried.png",
   "/dish-veg.png",
   "/dish-noodles.png",

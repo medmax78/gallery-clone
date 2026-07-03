@@ -1,68 +1,42 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { HeroBanner } from "@/components/gallery/hero-banner"
 import { IntroCard } from "@/components/gallery/intro-card"
 import { VesselDetail } from "@/components/gallery/vessel-detail"
 import { TopWorst } from "@/components/gallery/top-worst"
 import { Lightbox } from "@/components/gallery/lightbox"
 import type { Dish } from "@/lib/gallery-data"
-import { getExtremeDishes, VESSELS } from "@/lib/gallery-data"
-
-type Override = { rating: number; votes: number }
-
-function findBaseDish(dishId: string): { rating: number; votes: number } | null {
-  for (const v of VESSELS) {
-    const d = v.dishes.find((x) => x.id === dishId)
-    if (d) return { rating: d.rating, votes: d.votes }
-  }
-  return null
-}
+import { extremeDishes, useGalleryStore } from "@/lib/gallery-store"
 
 export default function GalleryPage() {
+  const { vessels, rateDish } = useGalleryStore()
   const [selected, setSelected] = useState<string | null>(null)
-  const [overrides, setOverrides] = useState<Record<string, Override>>({})
   const [lightbox, setLightbox] = useState<{ dishes: Dish[]; index: number } | null>(null)
 
-  const applyOverride = <T extends Dish>(dish: T): T => {
-    const o = overrides[dish.id]
-    return o ? { ...dish, rating: o.rating, votes: o.votes } : dish
-  }
+  const selectedVessel = useMemo(
+    () => (selected ? vessels.find((v) => v.name === selected) ?? null : null),
+    [selected, vessels],
+  )
 
-  const rate = (dishId: string, value: number) => {
-    setOverrides((prev) => {
-      // Blend the new vote into the existing average for a believable result.
-      const base = prev[dishId] ?? findBaseDish(dishId)
-      if (!base) return prev
-      const votes = base.votes + 1
-      const rating = Math.round(((base.rating * base.votes + value) / votes) * 10) / 10
-      return { ...prev, [dishId]: { rating, votes } }
-    })
-  }
+  const { lowest, highest } = useMemo(() => extremeDishes(vessels), [vessels])
 
-  const selectedVessel = useMemo(() => {
-    if (!selected) return null
-    const v = VESSELS.find((x) => x.name === selected)
-    if (!v) return null
-    return { ...v, dishes: v.dishes.map(applyOverride) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, overrides])
-
-  const { lowest, highest } = useMemo(() => {
-    const extremes = getExtremeDishes()
-    return {
-      lowest: extremes.lowest.map(applyOverride),
-      highest: extremes.highest.map(applyOverride),
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overrides])
+  // Map dish id -> current dish so the lightbox reflects live ratings from the store.
+  const dishById = useMemo(() => {
+    const map = new Map<string, Dish>()
+    for (const v of vessels) for (const d of v.dishes) map.set(d.id, d)
+    return map
+  }, [vessels])
 
   const openLightbox = (dishes: Dish[], index: number) => {
     if (index < 0) return
     setLightbox({ dishes, index })
   }
 
-  const lightboxDishes = lightbox ? lightbox.dishes.map(applyOverride) : []
+  const lightboxDishes = lightbox
+    ? lightbox.dishes.map((d) => dishById.get(d.id) ?? d)
+    : []
 
   return (
     <main className="min-h-dvh bg-background">
@@ -70,6 +44,7 @@ export default function GalleryPage() {
         <section className="overflow-hidden rounded-md border-2 border-gold">
           <HeroBanner />
           <IntroCard
+            vessels={vessels}
             selected={selected}
             onSelect={(name) => setSelected((cur) => (cur === name ? null : name))}
           />
@@ -80,11 +55,20 @@ export default function GalleryPage() {
             vessel={selectedVessel}
             onHide={() => setSelected(null)}
             onOpenPhoto={openLightbox}
-            onRate={rate}
+            onRate={rateDish}
           />
         )}
 
         <TopWorst lowest={lowest} highest={highest} onOpen={openLightbox} />
+
+        <footer className="flex items-center justify-center pb-4 pt-2">
+          <Link
+            href="/admin"
+            className="text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-gold"
+          >
+            Crew Admin
+          </Link>
+        </footer>
       </div>
 
       {lightbox && (
@@ -93,7 +77,7 @@ export default function GalleryPage() {
           index={lightbox.index}
           onClose={() => setLightbox(null)}
           onNavigate={(index) => setLightbox((lb) => (lb ? { ...lb, index } : lb))}
-          onRate={rate}
+          onRate={rateDish}
         />
       )}
     </main>

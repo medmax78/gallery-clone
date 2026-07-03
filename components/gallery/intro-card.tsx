@@ -1,12 +1,13 @@
 import { Eye } from "lucide-react"
-import { VESSELS } from "@/lib/gallery-data"
+import type { Vessel } from "@/lib/gallery-data"
 
 type IntroCardProps = {
+  vessels: Vessel[]
   selected: string | null
   onSelect: (name: string) => void
 }
 
-export function IntroCard({ selected, onSelect }: IntroCardProps) {
+export function IntroCard({ vessels, selected, onSelect }: IntroCardProps) {
   return (
     <div className="bg-intro text-intro-foreground px-5 py-6 sm:px-8">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
@@ -33,7 +34,7 @@ export function IntroCard({ selected, onSelect }: IntroCardProps) {
         <p className="pt-2 font-semibold">Select vessel name</p>
 
         <div className="flex flex-wrap justify-center gap-3 pt-1">
-          {VESSELS.map((vessel) => {
+          {vessels.map((vessel) => {
             const active = selected === vessel.name
             return (
               <button

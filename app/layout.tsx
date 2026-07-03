@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Open_Sans } from 'next/font/google'
+import { GalleryStoreProvider } from '@/lib/gallery-store'
 import './globals.css'
 
 const openSans = Open_Sans({ subsets: ['latin'], variable: '--font-sans' })
@@ -42,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`bg-background ${openSans.variable}`}>
       <body className="font-sans antialiased">
-        {children}
+        <GalleryStoreProvider>{children}</GalleryStoreProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
