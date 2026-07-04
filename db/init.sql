@@ -36,6 +36,14 @@ CREATE TABLE IF NOT EXISTS admin_credentials (
   CONSTRAINT single_row CHECK (id = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS viewer_sessions (
+  id    INT NOT NULL PRIMARY KEY DEFAULT 1,
+  count INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO viewer_sessions (id, count) VALUES (1, 0)
+ON DUPLICATE KEY UPDATE id = id;
+
 -- 3. Seed default admin credentials
 INSERT INTO admin_credentials (id, username, password)
 VALUES (1, 'max', '1234567890')
