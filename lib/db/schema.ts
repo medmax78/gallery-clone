@@ -5,18 +5,18 @@ export const vessels = pgTable('vessels', {
   id:        text('id').primaryKey(),
   name:      text('name').notNull().unique(),
   thumbnail: text('thumbnail').notNull().default('/vessel-container.png'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const dishes = pgTable('dishes', {
   id:        text('id').primaryKey(),
   vesselId:  text('vessel_id').notNull(),
   image:     text('image').notNull(),
-  date:      timestamp('date').notNull(),
-  rating:    numeric('rating', { precision: 4, scale: 2 }).notNull().default('3'),
-  votes:     integer('votes').notNull().default(1),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  date:      timestamp('date', { withTimezone: true }).notNull(),
+  rating:    numeric('rating', { precision: 4, scale: 2 }).notNull().default('0'),
+  votes:     integer('votes').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const adminCredentials = pgTable('admin_credentials', {
@@ -25,6 +25,6 @@ export const adminCredentials = pgTable('admin_credentials', {
   password: text('password').notNull().default('1234567890'),
 })
 
-export type VesselRow            = typeof vessels.$inferSelect
-export type DishRow              = typeof dishes.$inferSelect
-export type AdminCredentialsRow  = typeof adminCredentials.$inferSelect
+export type VesselRow           = typeof vessels.$inferSelect
+export type DishRow             = typeof dishes.$inferSelect
+export type AdminCredentialsRow = typeof adminCredentials.$inferSelect
