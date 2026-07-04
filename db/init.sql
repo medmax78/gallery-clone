@@ -13,7 +13,7 @@ USE gallery_db;
 CREATE TABLE IF NOT EXISTS vessels (
   id          VARCHAR(32)  NOT NULL PRIMARY KEY,
   name        VARCHAR(255) NOT NULL UNIQUE,
-  thumbnail   TEXT         NOT NULL DEFAULT '/vessel-container.png',
+  thumbnail   VARCHAR(500) NOT NULL DEFAULT '/vessel-container.png',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS vessels (
 CREATE TABLE IF NOT EXISTS dishes (
   id          VARCHAR(32)    NOT NULL PRIMARY KEY,
   vessel_id   VARCHAR(32)    NOT NULL,
-  image       TEXT           NOT NULL,
+  image       VARCHAR(500)   NOT NULL,
   date        DATETIME       NOT NULL,
   rating      DECIMAL(4,2)   NOT NULL DEFAULT 0,
   votes       INT            NOT NULL DEFAULT 0,
