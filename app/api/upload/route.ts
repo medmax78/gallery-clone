@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     await writeFile(filePath, buffer)
 
-    // Return the public URL path so Next.js <Image> can serve it.
-    const publicPath = `/vessels/${safeFolder}/${filename}`
+    // Return an API route path so runtime-uploaded files are served correctly.
+    const publicPath = `/api/files/${safeFolder}/${filename}`
     return NextResponse.json({ path: publicPath })
   } catch (err) {
     console.error('[upload]', err)
