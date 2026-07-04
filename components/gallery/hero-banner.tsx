@@ -9,7 +9,7 @@ export function HeroBanner() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-top"
+        className="object-cover object-[center_35%]"
       />
     </div>
   )
