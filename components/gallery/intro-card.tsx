@@ -1,5 +1,8 @@
+"use client"
+
 import { Eye } from "lucide-react"
 import type { Vessel } from "@/lib/gallery-data"
+import { useViewers } from "@/hooks/use-viewers"
 
 type IntroCardProps = {
   vessels: Vessel[]
@@ -8,6 +11,8 @@ type IntroCardProps = {
 }
 
 export function IntroCard({ vessels, selected, onSelect }: IntroCardProps) {
+  const viewers = useViewers()
+
   return (
     <div className="bg-intro text-intro-foreground px-5 py-6 sm:px-8">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
@@ -28,7 +33,9 @@ export function IntroCard({ vessels, selected, onSelect }: IntroCardProps) {
 
         <div className="flex items-center justify-center gap-2 pt-1 text-sm font-medium">
           <Eye size={16} aria-hidden />
-          <span>18 viewers</span>
+          <span>
+            {viewers === null ? "..." : `${viewers} viewer${viewers !== 1 ? "s" : ""}`}
+          </span>
         </div>
 
         <p className="pt-2 font-semibold">Select vessel name</p>
