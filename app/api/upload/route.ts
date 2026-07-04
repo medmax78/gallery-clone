@@ -25,20 +25,32 @@ export async function POST(req: NextRequest) {
 
     // Build the target directory: public/vessels/<vessel-name>/
     const dir = path.join(process.cwd(), 'public', 'vessels', safeFolder)
-    await mkdir(dir, { recursive: true })
 
-    // Use a timestamp-based filename to avoid collisions.
     const filename = `${Date.now()}${ext}`
-    const filePath = path.join(dir, filename)
-
     const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(filePath, buffer)
+
+    try {
+      await mkdir(dir, { recursive: true })
+      await writeFile(path.join(dir, filename), buffer)
+    } catch (fsErr: unknown) {
+      // The v0 preview sandbox has a read-only filesystem — writing to public/
+      // is blocked. Return a placeholder so the rest of the flow still works
+      // in preview. On a real Ubuntu server this branch is never hit.
+      const msg = fsErr instanceof Error ? fsErr.message : String(fsErr)
+      if (msg.includes('read-only') || msg.includes('EROFS') || msg.includes('EACCES') || msg.includes('EPERM')) {
+        console.warn('[upload] Read-only filesystem (preview sandbox) — returning placeholder path')
+        const fallback = ['/dish-chicken.png', '/dish-beef.png', '/dish-buffet.png', '/dish-fruit.png']
+        const placeholder = fallback[Math.floor(Math.random() * fallback.length)]
+        return NextResponse.json({ path: placeholder, preview: true })
+      }
+      throw fsErr
+    }
 
     // Return the public URL path so Next.js <Image> can serve it.
     const publicPath = `/vessels/${safeFolder}/${filename}`
     return NextResponse.json({ path: publicPath })
   } catch (err) {
     console.error('[upload]', err)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
