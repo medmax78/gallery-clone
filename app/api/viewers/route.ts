@@ -1,73 +1,56 @@
-import { db } from '@/lib/db'
-import { sql } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
+import mysql from 'mysql2/promise'
 
-// Each worker keeps its own local set of open controllers.
-// The total count is stored in the DB so all workers agree on the real number.
-const controllers = new Set<ReadableStreamDefaultController>()
-
-function broadcastLocal(count: number) {
-  const msg = new TextEncoder().encode(`data: ${count}\n\n`)
-  for (const ctrl of controllers) {
-    try { ctrl.enqueue(msg) } catch { controllers.delete(ctrl) }
+// Parse DATABASE_URL manually to handle special characters in passwords
+function getDbConfig() {
+  const url = new URL(process.env.DATABASE_URL!)
+  return {
+    host: url.hostname,
+    port: parseInt(url.port || '3306'),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace('/', ''),
   }
 }
 
-async function increment(): Promise<number> {
-  await db.execute(sql`
-    INSERT INTO viewer_sessions (id, count)
-    VALUES (1, 1)
-    ON DUPLICATE KEY UPDATE count = count + 1
-  `)
-  const rows = await db.execute(sql`SELECT count FROM viewer_sessions WHERE id = 1`)
-  const row = (rows as unknown as { count: number }[])[0]
-  return row?.count ?? 1
+async function getConnection() {
+  return mysql.createConnection(getDbConfig())
 }
 
-async function decrement(): Promise<number> {
-  await db.execute(sql`
-    UPDATE viewer_sessions SET count = GREATEST(count - 1, 0) WHERE id = 1
-  `)
-  const rows = await db.execute(sql`SELECT count FROM viewer_sessions WHERE id = 1`)
-  const row = (rows as unknown as { count: number }[])[0]
-  return row?.count ?? 0
+// POST — called when a client connects or disconnects
+// body: { action: 'join' | 'leave' }
+export async function POST(req: NextRequest) {
+  const { action } = await req.json()
+  const conn = await getConnection()
+
+  try {
+    await conn.execute(`
+      INSERT INTO viewer_sessions (id, count) VALUES (1, 0)
+      ON DUPLICATE KEY UPDATE count = count + 0
+    `)
+
+    if (action === 'join') {
+      await conn.execute(`UPDATE viewer_sessions SET count = count + 1 WHERE id = 1`)
+    } else if (action === 'leave') {
+      await conn.execute(`UPDATE viewer_sessions SET count = GREATEST(count - 1, 0) WHERE id = 1`)
+    }
+
+    const [rows] = await conn.execute(`SELECT count FROM viewer_sessions WHERE id = 1`)
+    const count = (rows as { count: number }[])[0]?.count ?? 0
+    return NextResponse.json({ count })
+  } finally {
+    await conn.end()
+  }
 }
 
+// GET — called every 10s to poll current count
 export async function GET() {
-  let ctrl!: ReadableStreamDefaultController
-  let heartbeat: ReturnType<typeof setInterval>
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      ctrl = controller
-      controllers.add(ctrl)
-
-      const count = await increment()
-      broadcastLocal(count)
-
-      // Send a heartbeat every 15s to keep the connection alive through Nginx
-      heartbeat = setInterval(async () => {
-        try {
-          const rows = await db.execute(sql`SELECT count FROM viewer_sessions WHERE id = 1`)
-          const row = (rows as unknown as { count: number }[])[0]
-          const n = row?.count ?? 0
-          broadcastLocal(n)
-        } catch { /* ignore */ }
-      }, 15_000)
-    },
-    async cancel() {
-      clearInterval(heartbeat)
-      controllers.delete(ctrl)
-      const count = await decrement()
-      broadcastLocal(count)
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type':      'text/event-stream',
-      'Cache-Control':     'no-cache, no-transform',
-      'Connection':        'keep-alive',
-      'X-Accel-Buffering': 'no',
-    },
-  })
+  const conn = await getConnection()
+  try {
+    const [rows] = await conn.execute(`SELECT count FROM viewer_sessions WHERE id = 1`)
+    const count = (rows as { count: number }[])[0]?.count ?? 0
+    return NextResponse.json({ count })
+  } finally {
+    await conn.end()
+  }
 }

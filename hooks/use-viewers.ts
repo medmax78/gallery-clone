@@ -6,18 +6,34 @@ export function useViewers() {
   const [count, setCount] = useState<number | null>(null)
 
   useEffect(() => {
-    const es = new EventSource("/api/viewers")
+    let cancelled = false
 
-    es.onmessage = (e) => {
-      const n = parseInt(e.data, 10)
-      if (!isNaN(n)) setCount(n)
+    // Register this viewer when the tab opens
+    fetch('/api/viewers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'join' }) })
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setCount(d.count) })
+      .catch(() => {})
+
+    // Poll every 10 seconds to keep the count fresh
+    const interval = setInterval(() => {
+      fetch('/api/viewers')
+        .then(r => r.json())
+        .then(d => { if (!cancelled) setCount(d.count) })
+        .catch(() => {})
+    }, 10_000)
+
+    // Decrement when the tab closes
+    const handleUnload = () => {
+      navigator.sendBeacon('/api/viewers-leave')
     }
+    window.addEventListener('beforeunload', handleUnload)
 
-    es.onerror = () => {
-      // Connection dropped — retry handled automatically by the browser
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('beforeunload', handleUnload)
+      fetch('/api/viewers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'leave' }) }).catch(() => {})
     }
-
-    return () => es.close()
   }, [])
 
   return count
