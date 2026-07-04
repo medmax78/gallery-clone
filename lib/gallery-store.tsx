@@ -7,6 +7,7 @@ import {
   addVessel as addVesselAction,
   renameVessel as renameVesselAction,
   deleteVessel as deleteVesselAction,
+  updateVesselThumbnail as updateVesselThumbnailAction,
   addDish as addDishAction,
   deleteDish as deleteDishAction,
   rateDish as rateDishAction,
@@ -24,6 +25,7 @@ type GalleryStore = {
   addVessel: (name: string, thumbnail: string) => void
   renameVessel: (oldName: string, newName: string) => void
   deleteVessel: (name: string) => void
+  updateVesselThumbnail: (name: string, thumbnail: string) => void
   addDish: (vesselName: string, dish: NewDishInput) => void
   deleteDish: (vesselName: string, dishId: string) => void
   reset: () => void
@@ -90,6 +92,13 @@ export function GalleryStoreProvider({ children }: { children: React.ReactNode }
     [revalidate],
   )
 
+  const updateVesselThumbnail = useCallback(
+    (name: string, thumbnail: string) => {
+      updateVesselThumbnailAction(name, thumbnail).then(revalidate)
+    },
+    [revalidate],
+  )
+
   const addDish = useCallback(
     (vesselName: string, dish: NewDishInput) => {
       addDishAction(vesselName, dish).then(revalidate)
@@ -115,11 +124,12 @@ export function GalleryStoreProvider({ children }: { children: React.ReactNode }
       addVessel,
       renameVessel,
       deleteVessel,
+      updateVesselThumbnail,
       addDish,
       deleteDish,
       reset,
     }),
-    [vessels, ready, rateDish, addVessel, renameVessel, deleteVessel, addDish, deleteDish, reset],
+    [vessels, ready, rateDish, addVessel, renameVessel, deleteVessel, updateVesselThumbnail, addDish, deleteDish, reset],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

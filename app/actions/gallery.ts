@@ -85,6 +85,12 @@ export async function renameVessel(oldName: string, newName: string): Promise<vo
   revalidatePath('/admin')
 }
 
+export async function updateVesselThumbnail(name: string, thumbnail: string): Promise<void> {
+  await db.update(vessels).set({ thumbnail }).where(eq(vessels.name, name))
+  revalidatePath('/')
+  revalidatePath('/admin')
+}
+
 export async function deleteVessel(name: string): Promise<void> {
   const [vessel] = await db.select({ id: vessels.id }).from(vessels).where(eq(vessels.name, name))
   if (!vessel) return
