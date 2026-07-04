@@ -2,7 +2,7 @@ import Image from "next/image"
 
 export function HeroBanner() {
   return (
-    <div className="relative w-full overflow-hidden" style={{ aspectRatio: '32/9' }}>
+    <div className="relative aspect-video w-full overflow-hidden">
       <Image
         src="/hero-ship.jpg"
         alt="Swire Bulk cargo vessel at sea"
