@@ -72,7 +72,7 @@ export async function addVessel(name: string): Promise<void> {
     id: `v-${nanoid(8)}`,
     name: trimmed,
     thumbnail: '/vessel-container.png',
-  }).onConflictDoNothing()
+  }).onDuplicateKeyUpdate({ set: { id: sql`id` } })
   revalidatePath('/')
   revalidatePath('/admin')
 }
@@ -173,8 +173,7 @@ export async function updateAdminCredentials(
       username: trimUser,
       password: newPassword || existing.password,
     })
-    .onConflictDoUpdate({
-      target: adminCredentials.id,
+    .onDuplicateKeyUpdate({
       set: {
         username: trimUser,
         password: newPassword || existing.password,
