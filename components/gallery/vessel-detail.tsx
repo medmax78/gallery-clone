@@ -62,27 +62,9 @@ export function VesselDetail({ vessel, onHide, onOpenPhoto, onRate }: VesselDeta
     [years],
   )
 
-  // Auto-open the most recent year and month so photos are visible immediately.
-  const [openYears, setOpenYears] = useState<Set<number>>(() => {
-    if (years.length === 0) return new Set()
-    return new Set([years[years.length - 1].year])
-  })
-  const [openMonths, setOpenMonths] = useState<Set<string>>(() => {
-    if (years.length === 0) return new Set()
-    const latestYear = years[years.length - 1]
-    if (latestYear.months.length === 0) return new Set()
-    const latestMonth = latestYear.months[latestYear.months.length - 1]
-    return new Set([`${latestYear.year}-${latestMonth.month}`])
-  })
-  const [openDays, setOpenDays] = useState<Set<string>>(() => {
-    if (years.length === 0) return new Set()
-    const latestYear = years[years.length - 1]
-    if (latestYear.months.length === 0) return new Set()
-    const latestMonth = latestYear.months[latestYear.months.length - 1]
-    if (latestMonth.days.length === 0) return new Set()
-    const latestDay = latestMonth.days[latestMonth.days.length - 1]
-    return new Set([`${latestYear.year}-${latestMonth.month}-${latestDay.day}`])
-  })
+  const [openYears, setOpenYears] = useState<Set<number>>(new Set())
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set())
+  const [openDays, setOpenDays] = useState<Set<string>>(new Set())
 
   const toggle = <T,>(set: Set<T>, value: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set)
